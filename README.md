@@ -22,4 +22,4 @@ git clone https://github.com/eokoo/ComfyUI-Photopea.git
 ```
 ##### 已知bug
 
-切换其他工作流时，该节点会重置
+只能在当前工作流持续保留编辑图像功能，当切换到其他工作流再返回该工作流时，该节点会重置，只能重新编辑初始图像。
