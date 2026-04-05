@@ -15,10 +15,11 @@ if (!window._PhotopeaManager) {
             this.container = document.createElement("div");
             this.container.id = "photopea-global-container";
             
+            // z-index 设置为 10，使其在 ComfyUI 顶部菜单下方
             this.container.style.cssText = `
                 position: fixed;
                 display: none;
-                z-index: 1000;
+                z-index: 10; 
                 background: #1a1a1a;
                 flex-direction: column;
                 overflow: hidden;
@@ -49,9 +50,10 @@ if (!window._PhotopeaManager) {
                     this.container.style.width = "100vw";
                     this.container.style.height = "100vh";
                     this.container.style.transform = "none";
-                    this.container.style.border = "none";
+                    this.container.style.zIndex = "1000"; 
                     fullscreenBtn.innerText = "✖ 退出全屏";
                 } else {
+                    this.container.style.zIndex = "10";
                     fullscreenBtn.innerText = "🖥️ 全屏模式";
                     this.syncPositionWithNode(true); 
                 }
@@ -78,7 +80,6 @@ if (!window._PhotopeaManager) {
             document.body.appendChild(this.container);
         },
 
-        // 修改后的同步逻辑：整体下移 20px
         syncPositionWithNode(force = false) {
             if (!this.currentNode || !this.container || (!this.iframeActive && !force) || this.isFullscreen) return;
 
@@ -87,13 +88,11 @@ if (!window._PhotopeaManager) {
             
             const margin = 20; 
             const titleBarHeight = 35;
-            const extraTopOffset = 20; // 额外向下移动的 20px
+            const extraTopOffset = 20; 
 
-            // 计算位置：在原有基础上再加 extraTopOffset
             const clientX = (this.currentNode.pos[0] + ds.offset[0] + margin) * scale;
             const clientY = (this.currentNode.pos[1] + ds.offset[1] + titleBarHeight + margin + extraTopOffset) * scale;
 
-            // 计算高度：因为整体下移了，高度需要再减去 extraTopOffset 以防超出底部
             const innerW = this.currentNode.size[0] - (margin * 2);
             const innerH = this.currentNode.size[1] - titleBarHeight - (margin * 2) - extraTopOffset;
 
@@ -110,7 +109,7 @@ if (!window._PhotopeaManager) {
 }
 
 app.registerExtension({
-    name: "Comfy.PhotopeaEmbedded.FinalCorrected",
+    name: "Comfy.PhotopeaEmbedded.Final",
     async beforeRegisterNodeDef(nodeType, nodeData) {
         if (nodeData.name === "PhotopeaNode") {
             
@@ -166,7 +165,8 @@ app.registerExtension({
                 
                 const formData = new FormData();
                 formData.append("image", blob, filename);
-                formData.append("type", "output"); 
+                // --- 修改点：类型设为 input，不指定子目录 ---
+                formData.append("type", "input"); 
                 
                 const resp = await api.fetchApi("/upload/image", { method: "POST", body: formData });
                 if (resp.status === 200) {
