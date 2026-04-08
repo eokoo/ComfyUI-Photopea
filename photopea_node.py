@@ -20,11 +20,20 @@ class PhotopeaNode:
     FUNCTION = "execute_photopea"
     CATEGORY = "image/edit"
 
+    @classmethod
+    def IS_CHANGED(s, photopea_filename):
+        if not photopea_filename:
+            return ""
+        input_dir = folder_paths.get_input_directory()
+        img_path = os.path.join(input_dir, photopea_filename)
+        if os.path.exists(img_path):
+            return str(os.path.getmtime(img_path))
+        return photopea_filename
+
     def execute_photopea(self, photopea_filename):
         if not photopea_filename:
             return (torch.zeros([1, 64, 64, 3]), torch.zeros([1, 64, 64]))
 
-        # --- 修改点：路径直接指向标准的 input 根目录 ---
         input_dir = folder_paths.get_input_directory()
         img_path = os.path.join(input_dir, photopea_filename)
 
@@ -35,10 +44,7 @@ class PhotopeaNode:
         img = Image.open(img_path).convert("RGBA")
         image_np = np.array(img).astype(np.float32) / 255.0
         
-        # 提取 RGB 图像
         rgb_tensor = torch.from_numpy(image_np[:, :, :3])[None,]
-        
-        # 提取 Mask (Alpha)
         mask_np = image_np[:, :, 3]
         mask_tensor = 1.0 - torch.from_numpy(mask_np)
 

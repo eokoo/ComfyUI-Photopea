@@ -15,14 +15,13 @@ if (!window._PhotopeaManager) {
             this.container = document.createElement("div");
             this.container.id = "photopea-global-container";
             
-            // z-index 设置为 10，使其在 ComfyUI 顶部菜单下方
             this.container.style.cssText = `
                 position: fixed;
                 display: none;
                 z-index: 10; 
                 background: #1a1a1a;
                 flex-direction: column;
-                overflow: hidden;
+                overflow: hidden; /* 关键：裁剪掉可能的溢出 */
                 pointer-events: auto;
                 box-sizing: border-box;
                 transform-origin: top left;
@@ -69,8 +68,16 @@ if (!window._PhotopeaManager) {
             };
 
             this.iframe = document.createElement("iframe");
+            // 强制启用内部视口自适应
             this.iframe.src = "https://www.photopea.com#%7B%22fullScreen%22%3Atrue%7D";
-            this.iframe.style.cssText = "flex:1; border:none; width:100%; height:100%;";
+            this.iframe.style.cssText = `
+                flex: 1; 
+                border: none; 
+                width: 100%; 
+                height: 100%; 
+                display: block;
+                min-width: 0; /* 允许收缩 */
+            `;
 
             btnBar.appendChild(saveBtn);
             btnBar.appendChild(fullscreenBtn);
@@ -80,6 +87,7 @@ if (!window._PhotopeaManager) {
             document.body.appendChild(this.container);
         },
 
+        // 核心同步逻辑优化
         syncPositionWithNode(force = false) {
             if (!this.currentNode || !this.container || (!this.iframeActive && !force) || this.isFullscreen) return;
 
@@ -93,8 +101,9 @@ if (!window._PhotopeaManager) {
             const clientX = (this.currentNode.pos[0] + ds.offset[0] + margin) * scale;
             const clientY = (this.currentNode.pos[1] + ds.offset[1] + titleBarHeight + margin + extraTopOffset) * scale;
 
-            const innerW = this.currentNode.size[0] - (margin * 2);
-            const innerH = this.currentNode.size[1] - titleBarHeight - (margin * 2) - extraTopOffset;
+            // 修复：多加 1-2 像素，确保不会因为舍入误差导致右侧出现断层
+            const innerW = Math.ceil(this.currentNode.size[0] - (margin * 2)) + 1;
+            const innerH = Math.ceil(this.currentNode.size[1] - titleBarHeight - (margin * 2) - extraTopOffset);
 
             this.container.style.display = "flex";
             this.container.style.left = `${clientX}px`;
@@ -102,7 +111,12 @@ if (!window._PhotopeaManager) {
             this.container.style.width = `${innerW}px`;
             this.container.style.height = `${innerH}px`;
             this.container.style.transform = `scale(${scale})`;
-            this.container.style.border = "none";
+            
+            // 解决 Photopea 右侧空白：强制 iframe 内部感知到的宽度与 CSS 宽度严格对齐
+            if(this.iframe) {
+                this.iframe.width = innerW;
+                this.iframe.height = innerH;
+            }
         }
     };
     window._PhotopeaManager.init();
@@ -129,7 +143,9 @@ app.registerExtension({
                 if (window._PhotopeaManager.currentNode !== this) {
                     window._PhotopeaManager.currentNode = this;
                     window._PhotopeaManager.iframeActive = true;
+                    // 激活时强制触发两次同步，确保尺寸被正确解析
                     window._PhotopeaManager.syncPositionWithNode(true);
+                    setTimeout(() => window._PhotopeaManager.syncPositionWithNode(true), 50);
                 }
             };
 
@@ -165,7 +181,6 @@ app.registerExtension({
                 
                 const formData = new FormData();
                 formData.append("image", blob, filename);
-                // --- 修改点：类型设为 input，不指定子目录 ---
                 formData.append("type", "input"); 
                 
                 const resp = await api.fetchApi("/upload/image", { method: "POST", body: formData });
